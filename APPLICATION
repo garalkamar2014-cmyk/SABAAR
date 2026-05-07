@@ -1,0 +1,3553 @@
+name: sabaar
+description: SABAAR - Freelancer Project & Invoice Manager
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  google_fonts: ^6.1.0
+  percent_indicator: ^4.2.3
+  intl: ^0.19.0
+  fl_chart: ^0.66.2
+  shared_preferences: ^2.2.2
+  uuid: ^4.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+class AppTheme {
+  static const Color navy = Color(0xFF1A2744);
+  static const Color teal = Color(0xFF3ECFB0);
+  static const Color lime = Color(0xFFC8E84A);
+  static const Color limeText = Color(0xFF3A5000);
+  static const Color bg = Color(0xFFE8EBE4);
+  static const Color cardBg = Color(0xFFFFFFFF);
+  static const Color textMuted = Color(0xFF8A9090);
+  static const Color stroke = Color(0x2E1A2744);
+  static const Color holdYellow = Color(0xFFD8E060);
+
+  static ThemeData get theme {
+    return ThemeData(
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: navy,
+        background: bg,
+      ),
+      scaffoldBackgroundColor: bg,
+      textTheme: GoogleFonts.interTextTheme().copyWith(
+        bodyLarge: GoogleFonts.inter(color: navy),
+        bodyMedium: GoogleFonts.inter(color: navy),
+      ),
+      useMaterial3: true,
+    );
+  }
+
+  static TextStyle get heading1 => GoogleFonts.inter(
+        fontSize: 30,
+        fontWeight: FontWeight.w900,
+        color: navy,
+        letterSpacing: -0.8,
+      );
+
+  static TextStyle get heading2 => GoogleFonts.inter(
+        fontSize: 22,
+        fontWeight: FontWeight.w900,
+        color: navy,
+        letterSpacing: -0.4,
+      );
+
+  static TextStyle get heading3 => GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        color: navy,
+      );
+
+  static TextStyle get label => GoogleFonts.inter(
+        fontSize: 10,
+        fontWeight: FontWeight.w700,
+        color: textMuted,
+        letterSpacing: 0.4,
+      );
+
+  static TextStyle get body => GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: navy,
+      );
+
+  static TextStyle get bodySmall => GoogleFonts.inter(
+        fontSize: 10,
+        fontWeight: FontWeight.w500,
+        color: textMuted,
+      );
+
+  static TextStyle get pill => GoogleFonts.inter(
+        fontSize: 9,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.2,
+      );
+
+  static BoxDecoration get cardDecoration => BoxDecoration(
+        color: cardBg,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: navy.withOpacity(0.06),
+            blurRadius: 6,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      );
+
+  static BoxDecoration get headerDecoration => const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFCCEADE), Color(0xFFD6ECDE), Color(0xFFE4EEDD)],
+          stops: [0.0, 0.45, 1.0],
+        ),
+      );
+}
+
+import 'package:flutter/material.dart';
+
+// ── Project Status ──────────────────────────────────────────────────
+enum ProjectStatus { active, onHold, completed }
+
+extension ProjectStatusExt on ProjectStatus {
+  String get label {
+    switch (this) {
+      case ProjectStatus.active:
+        return 'ACTIVE';
+      case ProjectStatus.onHold:
+        return 'ON HOLD';
+      case ProjectStatus.completed:
+        return 'DONE';
+    }
+  }
+
+  Color get bgColor {
+    switch (this) {
+      case ProjectStatus.active:
+        return const Color(0xFF3ECFB0);
+      case ProjectStatus.onHold:
+        return const Color(0xFFD8E060);
+      case ProjectStatus.completed:
+        return const Color(0xFF1A2744);
+    }
+  }
+
+  Color get textColor {
+    switch (this) {
+      case ProjectStatus.active:
+        return const Color(0xFF0A3028);
+      case ProjectStatus.onHold:
+        return const Color(0xFF3A4A00);
+      case ProjectStatus.completed:
+        return Colors.white;
+    }
+  }
+}
+
+// ── Task Priority ────────────────────────────────────────────────────
+enum TaskPriority { urgent, normal, low }
+
+extension TaskPriorityExt on TaskPriority {
+  String get label {
+    switch (this) {
+      case TaskPriority.urgent:
+        return 'URGENT';
+      case TaskPriority.normal:
+        return 'NORMAL';
+      case TaskPriority.low:
+        return 'LOW';
+    }
+  }
+}
+
+// ── Invoice Status ───────────────────────────────────────────────────
+enum InvoiceStatus { unpaid, paid }
+
+extension InvoiceStatusExt on InvoiceStatus {
+  String get label => this == InvoiceStatus.paid ? 'PAID' : 'UNPAID';
+  Color get bgColor =>
+      this == InvoiceStatus.paid ? const Color(0xFF1A2744) : const Color(0xFF3ECFB0);
+  Color get textColor =>
+      this == InvoiceStatus.paid ? Colors.white : const Color(0xFF0A3028);
+}
+
+// ── Task ─────────────────────────────────────────────────────────────
+class TaskModel {
+  final String id;
+  String name;
+  bool isDone;
+  DateTime dueDate;
+  TaskPriority priority;
+  String description;
+  double price;
+  bool isInvoiced;
+
+  TaskModel({
+    required this.id,
+    required this.name,
+    this.isDone = false,
+    required this.dueDate,
+    this.priority = TaskPriority.normal,
+    this.description = '',
+    this.price = 0,
+    this.isInvoiced = false,
+  });
+}
+
+// ── Invoice Line ─────────────────────────────────────────────────────
+class InvoiceLine {
+  String taskName;
+  int unit;
+  double rate;
+
+  InvoiceLine({required this.taskName, required this.unit, required this.rate});
+
+  double get total => unit * rate;
+}
+
+// ── Invoice ───────────────────────────────────────────────────────────
+class InvoiceModel {
+  final String id;
+  String invoiceNumber;
+  InvoiceStatus status;
+  DateTime dueDate;
+  List<InvoiceLine> lines;
+  String projectId;
+
+  InvoiceModel({
+    required this.id,
+    required this.invoiceNumber,
+    this.status = InvoiceStatus.unpaid,
+    required this.dueDate,
+    required this.lines,
+    required this.projectId,
+  });
+
+  double get total => lines.fold(0, (sum, l) => sum + l.total);
+}
+
+// ── Project ────────────────────────────────────────────────────────────
+class ProjectModel {
+  final String id;
+  String name;
+  String clientName;
+  String clientCity;
+  String clientPhone;
+  ProjectStatus status;
+  List<TaskModel> tasks;
+  List<InvoiceModel> invoices;
+  String notes;
+  DateTime? dueDate;
+
+  ProjectModel({
+    required this.id,
+    required this.name,
+    required this.clientName,
+    this.clientCity = '',
+    this.clientPhone = '',
+    this.status = ProjectStatus.active,
+    List<TaskModel>? tasks,
+    List<InvoiceModel>? invoices,
+    this.notes = '',
+    this.dueDate,
+  })  : tasks = tasks ?? [],
+        invoices = invoices ?? [];
+
+  int get doneTasks => tasks.where((t) => t.isDone).length;
+  double get progress => tasks.isEmpty ? 0 : doneTasks / tasks.length;
+  int get pendingInvoices =>
+      invoices.where((i) => i.status == InvoiceStatus.unpaid).length;
+}
+
+// ── Space ──────────────────────────────────────────────────────────────
+class SpaceModel {
+  final String id;
+  String name;
+  String userName;
+  Color color;
+  List<ProjectModel> projects;
+
+  SpaceModel({
+    required this.id,
+    required this.name,
+    required this.userName,
+    required this.color,
+    List<ProjectModel>? projects,
+  }) : projects = projects ?? [];
+
+  int get totalTasks =>
+      projects.fold(0, (sum, p) => sum + p.tasks.length);
+  int get totalInvoices =>
+      projects.fold(0, (sum, p) => sum + p.invoices.length);
+}
+
+import 'package:flutter/material.dart';
+import 'models.dart';
+
+class AppState extends ChangeNotifier {
+  // Designer info
+  String designerName = 'Abdullah Abdeen';
+  String designerCity = 'Cairo, Egypt';
+  String designerPhone = '+20 10 1455 9799';
+
+  // Sample data
+  List<ProjectModel> projects = [
+    ProjectModel(
+      id: 'p1',
+      name: 'AL MEHAILY LAW',
+      clientName: 'AL MEHAILY LAW FIRM',
+      clientCity: 'Makkah, Saudi Arabia',
+      clientPhone: '+966 54 098 2204',
+      status: ProjectStatus.active,
+      notes:
+          'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Etiam eu turpis molestie, dictum est a, mattis tellus.',
+      dueDate: DateTime(2026, 1, 5),
+      tasks: [
+        TaskModel(
+          id: 't1',
+          name: 'LOGO DESIGN',
+          isDone: true,
+          dueDate: DateTime(2026, 1, 6),
+          priority: TaskPriority.urgent,
+          description: 'Design the main logo for the law firm.',
+          price: 3000,
+          isInvoiced: true,
+        ),
+        TaskModel(
+          id: 't2',
+          name: 'SOCIAL MEDIA DESIGN',
+          isDone: true,
+          dueDate: DateTime(2026, 1, 6),
+          priority: TaskPriority.urgent,
+          description: 'Create social media templates.',
+          price: 3600,
+          isInvoiced: true,
+        ),
+        TaskModel(
+          id: 't3',
+          name: 'PRINTABLE',
+          isDone: true,
+          dueDate: DateTime(2026, 1, 6),
+          priority: TaskPriority.normal,
+          description: 'Design printable materials.',
+          price: 6000,
+          isInvoiced: true,
+        ),
+        TaskModel(
+          id: 't4',
+          name: 'STICKERS',
+          isDone: false,
+          dueDate: DateTime(2026, 1, 6),
+          priority: TaskPriority.normal,
+          description: 'Design sticker pack.',
+          price: 4500,
+          isInvoiced: false,
+        ),
+        TaskModel(
+          id: 't5',
+          name: 'COMPANY PROFILE',
+          isDone: false,
+          dueDate: DateTime(2026, 1, 6),
+          priority: TaskPriority.low,
+          description: 'Design company profile document.',
+          price: 0,
+          isInvoiced: false,
+        ),
+      ],
+      invoices: [
+        InvoiceModel(
+          id: 'i1',
+          invoiceNumber: '#0002',
+          status: InvoiceStatus.paid,
+          dueDate: DateTime(2025, 1, 10),
+          projectId: 'p1',
+          lines: [
+            InvoiceLine(taskName: 'LOGO DESIGN', unit: 1, rate: 3000),
+            InvoiceLine(taskName: 'SOCIAL MEDIA DESIGN', unit: 12, rate: 300),
+            InvoiceLine(taskName: 'PRINTABLE', unit: 5, rate: 300),
+            InvoiceLine(taskName: 'STICKERS', unit: 6, rate: 750),
+          ],
+        ),
+      ],
+    ),
+    ProjectModel(
+      id: 'p2',
+      name: 'BLOOMY BUNNY',
+      clientName: 'BLOOMY BUNNY',
+      clientCity: 'Cairo, Egypt',
+      clientPhone: '+20 10 0000 0000',
+      status: ProjectStatus.active,
+      dueDate: DateTime(2026, 1, 5),
+      tasks: [
+        TaskModel(
+          id: 't6',
+          name: 'LOGO DESIGN',
+          isDone: true,
+          dueDate: DateTime(2025, 1, 5),
+          priority: TaskPriority.urgent,
+          price: 3000,
+        ),
+        TaskModel(
+          id: 't7',
+          name: 'BRAND IDENTITY',
+          isDone: false,
+          dueDate: DateTime(2025, 1, 5),
+          priority: TaskPriority.urgent,
+          price: 5000,
+        ),
+      ],
+      invoices: [
+        InvoiceModel(
+          id: 'i2',
+          invoiceNumber: '#0003',
+          status: InvoiceStatus.unpaid,
+          dueDate: DateTime(2025, 2, 4),
+          projectId: 'p2',
+          lines: [
+            InvoiceLine(taskName: 'LOGO DESIGN', unit: 1, rate: 5000),
+          ],
+        ),
+      ],
+    ),
+    ProjectModel(
+      id: 'p3',
+      name: 'RIFAD LAW FIRM',
+      clientName: 'RIFAD LAW FIRM',
+      clientCity: 'Riyadh, Saudi Arabia',
+      clientPhone: '+966 50 000 0000',
+      status: ProjectStatus.onHold,
+      dueDate: DateTime(2026, 1, 30),
+      tasks: List.generate(
+        10,
+        (i) => TaskModel(
+          id: 'tp3_$i',
+          name: 'TASK ${i + 1}',
+          isDone: false,
+          dueDate: DateTime(2026, 1, 30),
+        ),
+      ),
+      invoices: [
+        InvoiceModel(
+          id: 'i3',
+          invoiceNumber: '#0004',
+          status: InvoiceStatus.unpaid,
+          dueDate: DateTime(2026, 1, 30),
+          projectId: 'p3',
+          lines: [
+            InvoiceLine(taskName: 'RETAINER', unit: 1, rate: 5000),
+          ],
+        ),
+      ],
+    ),
+    ProjectModel(
+      id: 'p4',
+      name: 'NEXUS TECH',
+      clientName: 'NEXUS TECH',
+      clientCity: 'Dubai, UAE',
+      clientPhone: '+971 50 000 0000',
+      status: ProjectStatus.completed,
+      dueDate: DateTime(2026, 1, 5),
+      tasks: List.generate(
+        8,
+        (i) => TaskModel(
+          id: 'tp4_$i',
+          name: 'TASK ${i + 1}',
+          isDone: true,
+          dueDate: DateTime(2026, 1, 5),
+        ),
+      ),
+      invoices: [
+        InvoiceModel(
+          id: 'i4',
+          invoiceNumber: '#0005',
+          status: InvoiceStatus.unpaid,
+          dueDate: DateTime(2025, 2, 4),
+          projectId: 'p4',
+          lines: [
+            InvoiceLine(taskName: 'BRAND PACKAGE', unit: 1, rate: 5000),
+          ],
+        ),
+      ],
+    ),
+    ProjectModel(
+      id: 'p5',
+      name: 'AA MEDIA',
+      clientName: 'AA MEDIA',
+      clientCity: 'Cairo, Egypt',
+      clientPhone: '+20 10 0000 0001',
+      status: ProjectStatus.completed,
+      dueDate: DateTime(2026, 1, 5),
+      tasks: List.generate(
+        8,
+        (i) => TaskModel(
+          id: 'tp5_$i',
+          name: 'TASK ${i + 1}',
+          isDone: true,
+          dueDate: DateTime(2026, 1, 5),
+        ),
+      ),
+      invoices: [],
+    ),
+    ProjectModel(
+      id: 'p6',
+      name: 'DIAMOND STEPS',
+      clientName: 'DIAMOND STEPS',
+      clientCity: 'Alexandria, Egypt',
+      clientPhone: '+20 10 0000 0002',
+      status: ProjectStatus.completed,
+      dueDate: DateTime(2026, 1, 6),
+      tasks: List.generate(
+        8,
+        (i) => TaskModel(
+          id: 'tp6_$i',
+          name: 'TASK ${i + 1}',
+          isDone: true,
+          dueDate: DateTime(2026, 1, 6),
+        ),
+      ),
+      invoices: [],
+    ),
+  ];
+
+  List<SpaceModel> spaces = [
+    SpaceModel(
+      id: 's1',
+      name: 'MY WORKSPACE',
+      userName: 'ABDULLAH ABDEEN',
+      color: const Color(0xFF3ECFB0),
+    ),
+    SpaceModel(
+      id: 's2',
+      name: 'DESIGN STUDIO',
+      userName: 'USER NAME',
+      color: const Color(0xFFA8C830),
+    ),
+    SpaceModel(
+      id: 's3',
+      name: 'FREELANCE HUB',
+      userName: 'USER NAME',
+      color: const Color(0xFF2A2A2A),
+    ),
+  ];
+
+  // Getters
+  List<ProjectModel> get activeProjects =>
+      projects.where((p) => p.status == ProjectStatus.active).toList();
+
+  List<ProjectModel> get onHoldProjects =>
+      projects.where((p) => p.status == ProjectStatus.onHold).toList();
+
+  List<ProjectModel> get completedProjects =>
+      projects.where((p) => p.status == ProjectStatus.completed).toList();
+
+  List<InvoiceModel> get allInvoices =>
+      projects.expand((p) => p.invoices).toList();
+
+  List<InvoiceModel> get unpaidInvoices =>
+      allInvoices.where((i) => i.status == InvoiceStatus.unpaid).toList();
+
+  List<InvoiceModel> get paidInvoices =>
+      allInvoices.where((i) => i.status == InvoiceStatus.paid).toList();
+
+  List<TaskModel> get todayTasks {
+    final today = DateTime.now();
+    return projects.expand((p) => p.tasks).where((t) {
+      return !t.isDone &&
+          t.dueDate.year == today.year &&
+          t.dueDate.month == today.month &&
+          t.dueDate.day == today.day;
+    }).toList();
+  }
+
+  double get totalOverdueAmount =>
+      unpaidInvoices.fold(0, (sum, i) => sum + i.total);
+
+  // Mutations
+  void addProject(ProjectModel project) {
+    projects.add(project);
+    notifyListeners();
+  }
+
+  void updateProject(ProjectModel project) {
+    final idx = projects.indexWhere((p) => p.id == project.id);
+    if (idx != -1) {
+      projects[idx] = project;
+      notifyListeners();
+    }
+  }
+
+  void deleteProject(String id) {
+    projects.removeWhere((p) => p.id == id);
+    notifyListeners();
+  }
+
+  void toggleTask(String projectId, String taskId) {
+    final proj = projects.firstWhere((p) => p.id == projectId);
+    final task = proj.tasks.firstWhere((t) => t.id == taskId);
+    task.isDone = !task.isDone;
+    notifyListeners();
+  }
+
+  void markInvoicePaid(String invoiceId) {
+    for (final p in projects) {
+      for (final inv in p.invoices) {
+        if (inv.id == invoiceId) {
+          inv.status = InvoiceStatus.paid;
+          notifyListeners();
+          return;
+        }
+      }
+    }
+  }
+
+  void addInvoice(String projectId, InvoiceModel invoice) {
+    final proj = projects.firstWhere((p) => p.id == projectId);
+    proj.invoices.add(invoice);
+    notifyListeners();
+  }
+
+  ProjectModel? getProject(String id) {
+    try {
+      return projects.firstWhere((p) => p.id == id);
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_theme.dart';
+
+// ── Pill / Badge ──────────────────────────────────────────────────────
+class AppPill extends StatelessWidget {
+  final String text;
+  final Color bgColor;
+  final Color textColor;
+  final double fontSize;
+
+  const AppPill({
+    super.key,
+    required this.text,
+    this.bgColor = AppTheme.navy,
+    this.textColor = Colors.white,
+    this.fontSize = 9,
+  });
+
+  factory AppPill.lime(String text) => AppPill(
+        text: text,
+        bgColor: AppTheme.lime,
+        textColor: AppTheme.limeText,
+      );
+
+  factory AppPill.teal(String text) => AppPill(
+        text: text,
+        bgColor: AppTheme.teal,
+        textColor: const Color(0xFF0A3028),
+      );
+
+  factory AppPill.navy(String text) => const AppPill(text: '');
+
+  factory AppPill.gray(String text) => AppPill(
+        text: text,
+        bgColor: const Color(0xFFE0E2DC),
+        textColor: const Color(0xFF555555),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: fontSize,
+          fontWeight: FontWeight.w700,
+          color: textColor,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Arrow Button ──────────────────────────────────────────────────────
+class ArrowButton extends StatelessWidget {
+  final VoidCallback? onTap;
+  final double size;
+
+  const ArrowButton({super.key, this.onTap, this.size = 30});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: AppTheme.teal,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Icon(
+          Icons.arrow_outward,
+          color: Colors.white,
+          size: size * 0.5,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Progress Bar ──────────────────────────────────────────────────────
+class AppProgressBar extends StatelessWidget {
+  final double value;
+
+  const AppProgressBar({super.key, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 10,
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAECE6),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: FractionallySizedBox(
+        alignment: Alignment.centerLeft,
+        widthFactor: value.clamp(0.0, 1.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.teal,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 5),
+          child: value > 0.1
+              ? Text(
+                  '${(value * 100).round()}%',
+                  style: const TextStyle(
+                    fontSize: 7,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Section Title ─────────────────────────────────────────────────────
+class SectionTitle extends StatelessWidget {
+  final String text;
+  const SectionTitle(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          color: AppTheme.navy,
+          letterSpacing: 0.4,
+        ),
+      ),
+    );
+  }
+}
+
+// ── App Text Field ────────────────────────────────────────────────────
+class AppTextField extends StatelessWidget {
+  final String hint;
+  final TextEditingController? controller;
+  final int maxLines;
+  final TextInputType keyboardType;
+  final VoidCallback? onTap;
+  final bool readOnly;
+
+  const AppTextField({
+    super.key,
+    required this.hint,
+    this.controller,
+    this.maxLines = 1,
+    this.keyboardType = TextInputType.text,
+    this.onTap,
+    this.readOnly = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      onTap: onTap,
+      readOnly: readOnly,
+      style: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: AppTheme.navy,
+      ),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: AppTheme.navy.withOpacity(0.3),
+        ),
+        filled: true,
+        fillColor: Colors.transparent,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppTheme.navy.withOpacity(0.2),
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(
+            color: AppTheme.navy.withOpacity(0.5),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── App Header ────────────────────────────────────────────────────────
+class AppHeader extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final List<Widget>? actions;
+
+  const AppHeader({
+    super.key,
+    required this.title,
+    this.subtitle,
+    this.actions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: AppTheme.headerDecoration,
+      padding: const EdgeInsets.fromLTRB(16, 48, 16, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.navy.withOpacity(0.55),
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                Text(title, style: AppTheme.heading1),
+              ],
+            ),
+          ),
+          if (actions != null) ...actions!,
+        ],
+      ),
+    );
+  }
+}
+
+// ── Avatar ────────────────────────────────────────────────────────────
+class AppAvatar extends StatelessWidget {
+  final String initials;
+  final double size;
+
+  const AppAvatar({super.key, this.initials = 'AA', this.size = 36});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: const BoxDecoration(
+        color: AppTheme.navy,
+        shape: BoxShape.circle,
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        initials,
+        style: GoogleFonts.inter(
+          fontSize: size * 0.3,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Floating Glass Nav ────────────────────────────────────────────────
+class GlassNavBar extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  final VoidCallback onPlusTap;
+
+  const GlassNavBar({
+    super.key,
+    required this.currentIndex,
+    required this.onTap,
+    required this.onPlusTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      bottom: 14,
+      left: 14,
+      right: 14,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(26),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.28),
+            borderRadius: BorderRadius.circular(26),
+            border: Border.all(color: Colors.white.withOpacity(0.55)),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.navy.withOpacity(0.12),
+                blurRadius: 32,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: BackdropFilter(
+            filter: ColorFilter.mode(
+              Colors.white.withOpacity(0.1),
+              BlendMode.lighten,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _NavIcon(
+                    icon: Icons.home_outlined,
+                    activeIcon: Icons.home_rounded,
+                    isActive: currentIndex == 0,
+                    onTap: () => onTap(0),
+                  ),
+                  _NavIcon(
+                    icon: Icons.folder_outlined,
+                    activeIcon: Icons.folder_rounded,
+                    isActive: currentIndex == 1,
+                    onTap: () => onTap(1),
+                  ),
+                  _PlusButton(onTap: onPlusTap),
+                  _NavIcon(
+                    icon: Icons.receipt_long_outlined,
+                    activeIcon: Icons.receipt_long_rounded,
+                    isActive: currentIndex == 2,
+                    onTap: () => onTap(2),
+                  ),
+                  _NavIcon(
+                    icon: Icons.language_outlined,
+                    activeIcon: Icons.language_rounded,
+                    isActive: currentIndex == 3,
+                    onTap: () => onTap(3),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavIcon extends StatelessWidget {
+  final IconData icon;
+  final IconData activeIcon;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _NavIcon({
+    required this.icon,
+    required this.activeIcon,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: isActive ? AppTheme.navy : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Icon(
+          isActive ? activeIcon : icon,
+          color: isActive ? Colors.white : AppTheme.navy,
+          size: 22,
+        ),
+      ),
+    );
+  }
+}
+
+class _PlusButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _PlusButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: AppTheme.navy,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.navy.withOpacity(0.25),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: const Icon(Icons.add, color: Colors.white, size: 22),
+      ),
+    );
+  }
+}
+
+// ── Add Menu Overlay ──────────────────────────────────────────────────
+class AddMenuOverlay extends StatelessWidget {
+  final bool showNewSpace;
+  final VoidCallback onNewProject;
+  final VoidCallback onNewInvoice;
+  final VoidCallback onAiMode;
+  final VoidCallback onNewSpace;
+  final VoidCallback onDismiss;
+
+  const AddMenuOverlay({
+    super.key,
+    this.showNewSpace = false,
+    required this.onNewProject,
+    required this.onNewInvoice,
+    required this.onAiMode,
+    required this.onNewSpace,
+    required this.onDismiss,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: GestureDetector(
+        onTap: onDismiss,
+        child: Container(
+          color: Colors.transparent,
+          child: Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 14, bottom: 80),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: showNewSpace
+                    ? [_MenuItem('NEW SPACE', Icons.language, onNewSpace)]
+                    : [
+                        _MenuItem('NEW PROJECT', Icons.note_add_outlined, onNewProject),
+                        const SizedBox(height: 8),
+                        _MenuItem('NEW INVOICE', Icons.receipt_outlined, onNewInvoice),
+                        const SizedBox(height: 8),
+                        _MenuItem('AI MODE', Icons.mic_outlined, onAiMode),
+                      ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MenuItem extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _MenuItem(this.label, this.icon, this.onTap);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppTheme.navy,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.navy.withOpacity(0.25),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.navy.withOpacity(0.15),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: AppTheme.navy, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../theme/app_theme.dart';
+import 'main_shell.dart';
+
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _fadeAnim = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+    _controller.forward();
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => const MainShell(),
+            transitionDuration: const Duration(milliseconds: 500),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFFCCE8DE), Color(0xFFE4ECE0), Color(0xFFD8E8D0)],
+            stops: [0.0, 0.6, 1.0],
+          ),
+        ),
+        child: FadeTransition(
+          opacity: _fadeAnim,
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Cactus Logo
+                _CactusLogo(),
+                const SizedBox(height: 16),
+                Text(
+                  'SABAAR',
+                  style: GoogleFonts.inter(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.navy,
+                    letterSpacing: 3,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'صبار',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.teal,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CactusLogo extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(80, 90),
+      painter: _CactusPainter(),
+    );
+  }
+}
+
+class _CactusPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = AppTheme.navy;
+    final dotPaint = Paint()..color = const Color(0xFFE8EBE4);
+
+    // Main body
+    final body = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.4, size.height * 0.05,
+          size.width * 0.22, size.height * 0.65),
+      const Radius.circular(11),
+    );
+    canvas.drawRRect(body, paint);
+
+    // Left arm
+    final leftArm = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.1, size.height * 0.25,
+          size.width * 0.35, size.height * 0.17),
+      const Radius.circular(9),
+    );
+    canvas.drawRRect(leftArm, paint);
+
+    // Right arm
+    final rightArm = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.55, size.height * 0.38,
+          size.width * 0.35, size.height * 0.17),
+      const Radius.circular(9),
+    );
+    canvas.drawRRect(rightArm, paint);
+
+    // Dots
+    final dots = [
+      Offset(size.width * 0.51, size.height * 0.28),
+      Offset(size.width * 0.51, size.height * 0.44),
+      Offset(size.width * 0.51, size.height * 0.60),
+    ];
+    for (final d in dots) {
+      canvas.drawCircle(d, 4, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../models/app_state.dart';
+import '../widgets/widgets.dart';
+import 'dashboard_screen.dart';
+import 'projects_screen.dart';
+import 'invoices_screen.dart';
+import 'spaces_screen.dart';
+import 'new_project_screen.dart';
+import 'new_invoice_screen.dart';
+
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int _currentIndex = 0;
+  bool _showAddMenu = false;
+
+  final List<Widget> _screens = const [
+    DashboardScreen(),
+    ProjectsScreen(),
+    InvoicesScreen(),
+    SpacesScreen(),
+  ];
+
+  void _onNavTap(int index) {
+    setState(() {
+      _currentIndex = index;
+      _showAddMenu = false;
+    });
+  }
+
+  void _onPlusTap() {
+    setState(() => _showAddMenu = !_showAddMenu);
+  }
+
+  void _openNewProject() {
+    setState(() => _showAddMenu = false);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NewProjectScreen()),
+    );
+  }
+
+  void _openNewInvoice() {
+    setState(() => _showAddMenu = false);
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NewInvoiceScreen()),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _currentIndex,
+            children: _screens,
+          ),
+          GlassNavBar(
+            currentIndex: _currentIndex,
+            onTap: _onNavTap,
+            onPlusTap: _onPlusTap,
+          ),
+          if (_showAddMenu)
+            AddMenuOverlay(
+              showNewSpace: _currentIndex == 3,
+              onNewProject: _openNewProject,
+              onNewInvoice: _openNewInvoice,
+              onAiMode: () => setState(() => _showAddMenu = false),
+              onNewSpace: () => setState(() => _showAddMenu = false),
+              onDismiss: () => setState(() => _showAddMenu = false),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../models/app_state.dart';
+import '../models/models.dart';
+import '../theme/app_theme.dart';
+import '../widgets/widgets.dart';
+import 'task_detail_screen.dart';
+import 'invoice_detail_screen.dart';
+
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final now = DateTime.now();
+    final allTasks = state.projects.expand((p) => p.tasks).toList();
+    final doneTasks = allTasks.where((t) => t.isDone).length;
+    final pendingTasks = allTasks.where((t) => !t.isDone).length;
+    final taskProgress = allTasks.isEmpty ? 0.0 : doneTasks / allTasks.length;
+    final overdueInvoices = state.unpaidInvoices;
+
+    return Scaffold(
+      backgroundColor: AppTheme.bg,
+      body: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: AppTheme.headerDecoration,
+              padding: const EdgeInsets.fromLTRB(16, 54, 16, 14),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          DateFormat('MMM d, yyyy').format(now).toUpperCase(),
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.navy.withOpacity(0.55),
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                        Text('TODAY', style: AppTheme.heading1),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      color: AppTheme.lime,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${now.day}',
+                      style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: AppTheme.limeText,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const AppAvatar(),
+                ],
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // Widgets Row
+                Row(
+                  children: [
+                    Expanded(
+                      child: _TaskProgressWidget(
+                        progress: taskProgress,
+                        done: doneTasks,
+                        pending: pendingTasks,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _OverdueWidget(
+                        count: overdueInvoices.length,
+                        total: state.totalOverdueAmount,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Today's Tasks
+                const SectionTitle("TODAY'S TASKS"),
+                ...state.projects
+                    .expand((p) => p.tasks
+                        .where((t) => !t.isDone)
+                        .map((t) => _TodayTaskRow(task: t, project: p)))
+                    .take(5)
+                    .toList(),
+                const SizedBox(height: 16),
+
+                // Today's Invoices
+                const SectionTitle("TODAY'S INVOICES"),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 1.5,
+                  children: overdueInvoices
+                      .take(6)
+                      .map((inv) => _InvoiceChip(invoice: inv))
+                      .toList(),
+                ),
+              ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskProgressWidget extends StatelessWidget {
+  final double progress;
+  final int done;
+  final int pending;
+
+  const _TaskProgressWidget({
+    required this.progress,
+    required this.done,
+    required this.pending,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        children: [
+          Text(
+            'TASKS PROGRESS',
+            style: GoogleFonts.inter(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textMuted,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: 72,
+            height: 72,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: progress,
+                  strokeWidth: 8,
+                  backgroundColor: const Color(0xFFEAECE6),
+                  valueColor:
+                      const AlwaysStoppedAnimation<Color>(AppTheme.teal),
+                  strokeCap: StrokeCap.round,
+                ),
+                Text(
+                  '${(progress * 100).round()}%',
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.navy,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                'DONE ',
+                style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textMuted),
+              ),
+              Text(
+                '$done',
+                style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.navy),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'PEND ',
+                style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textMuted),
+              ),
+              Text(
+                '$pending',
+                style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.navy),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OverdueWidget extends StatelessWidget {
+  final int count;
+  final double total;
+
+  const _OverdueWidget({required this.count, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        children: [
+          Text(
+            'OVERDUE INVOICES',
+            style: GoogleFonts.inter(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textMuted,
+              letterSpacing: 0.6,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '$count',
+            style: GoogleFonts.inter(
+              fontSize: 44,
+              fontWeight: FontWeight.w900,
+              color: AppTheme.navy,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            'PENDING INVOICES',
+            style: GoogleFonts.inter(
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.textMuted,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: AppTheme.lime,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            alignment: Alignment.center,
+            child: Text(
+              '${total.toStringAsFixed(0)} EGP',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.limeText,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TodayTaskRow extends StatelessWidget {
+  final TaskModel task;
+  final ProjectModel project;
+
+  const _TodayTaskRow({required this.task, required this.project});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TaskDetailScreen(task: task, project: project),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        decoration: AppTheme.cardDecoration,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.name,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.navy,
+                    ),
+                  ),
+                  Text(
+                    project.name,
+                    style: GoogleFonts.inter(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textMuted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const AppPill(text: 'DUE TODAY', bgColor: AppTheme.navy),
+            const SizedBox(width: 6),
+            ArrowButton(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      TaskDetailScreen(task: task, project: project),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InvoiceChip extends StatelessWidget {
+  final InvoiceModel invoice;
+
+  const _InvoiceChip({required this.invoice});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.read<AppState>();
+    final project =
+        state.projects.firstWhere((p) => p.id == invoice.projectId);
+
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              InvoiceDetailScreen(invoice: invoice, project: project),
+        ),
+      ),
+      child: Container(
+        decoration: AppTheme.cardDecoration,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              project.name,
+              style: GoogleFonts.inter(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.navy,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              'OVERDUE',
+              style: GoogleFonts.inter(
+                fontSize: 8.5,
+                fontWeight: FontWeight.w500,
+                color: AppTheme.textMuted,
+              ),
+            ),
+            const Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${invoice.total.toStringAsFixed(0)} EGP',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.navy,
+                  ),
+                ),
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: AppTheme.navy,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.receipt_long,
+                    color: Colors.white,
+                    size: 13,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../models/app_state.dart';
+import '../models/models.dart';
+import '../theme/app_theme.dart';
+import '../widgets/widgets.dart';
+import 'project_detail_screen.dart';
+
+class ProjectsScreen extends StatefulWidget {
+  const ProjectsScreen({super.key});
+
+  @override
+  State<ProjectsScreen> createState() => _ProjectsScreenState();
+}
+
+class _ProjectsScreenState extends State<ProjectsScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+
+    return Scaffold(
+      backgroundColor: AppTheme.bg,
+      body: Column(
+        children: [
+          Container(
+            decoration: AppTheme.headerDecoration,
+            padding: const EdgeInsets.fromLTRB(16, 54, 16, 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormat('MMM d, yyyy')
+                            .format(DateTime.now())
+                            .toUpperCase(),
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.navy.withOpacity(0.55),
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                      Text('PROJECTS', style: AppTheme.heading1),
+                    ],
+                  ),
+                ),
+                Icon(Icons.calendar_today_outlined,
+                    color: AppTheme.navy, size: 20),
+                const SizedBox(width: 10),
+                const AppAvatar(),
+              ],
+            ),
+          ),
+
+          // Tab Bar
+          Container(
+            margin: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+            decoration: BoxDecoration(
+              color: AppTheme.navy.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            padding: const EdgeInsets.all(3),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(11),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              labelColor: AppTheme.navy,
+              unselectedLabelColor: AppTheme.textMuted,
+              labelStyle: GoogleFonts.inter(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+              unselectedLabelStyle: GoogleFonts.inter(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+              dividerColor: Colors.transparent,
+              tabs: [
+                Tab(text: 'ACTIVE ${state.activeProjects.length}'),
+                Tab(text: 'ON HOLD ${state.onHoldProjects.length}'),
+                Tab(text: 'COMPLETED ${state.completedProjects.length}'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _ProjectList(projects: state.activeProjects),
+                _ProjectList(projects: state.onHoldProjects),
+                _ProjectList(projects: state.completedProjects),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProjectList extends StatelessWidget {
+  final List<ProjectModel> projects;
+
+  const _ProjectList({required this.projects});
+
+  @override
+  Widget build(BuildContext context) {
+    if (projects.isEmpty) {
+      return const _EmptyState();
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
+      itemCount: projects.length,
+      itemBuilder: (_, i) => ProjectCard(project: projects[i]),
+    );
+  }
+}
+
+class ProjectCard extends StatelessWidget {
+  final ProjectModel project;
+
+  const ProjectCard({super.key, required this.project});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ProjectDetailScreen(projectId: project.id),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: AppTheme.cardDecoration,
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        project.name,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.navy,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      Text(
+                        'CLIENT NAME',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ArrowButton(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ProjectDetailScreen(projectId: project.id),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                'TASKS ${project.doneTasks} / ${project.tasks.length}',
+                style: GoogleFonts.inter(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textMuted,
+                ),
+              ),
+            ),
+            const SizedBox(height: 3),
+            AppProgressBar(value: project.progress),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(
+                  'PENDING ',
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textMuted,
+                  ),
+                ),
+                Text(
+                  '${project.pendingInvoices}',
+                  style: GoogleFonts.inter(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.navy,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                if (project.dueDate != null)
+                  AppPill(
+                    text: project.status == ProjectStatus.active
+                        ? 'DUE TODAY'
+                        : DateFormat('MMM dd, yyyy').format(project.dueDate!),
+                    bgColor: project.status == ProjectStatus.active
+                        ? AppTheme.navy
+                        : AppTheme.lime,
+                    textColor: project.status == ProjectStatus.active
+                        ? Colors.white
+                        : AppTheme.limeText,
+                  ),
+                const Spacer(),
+                AppPill(
+                  text: project.status.label,
+                  bgColor: project.status.bgColor,
+                  textColor: project.status.textColor,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.grass_outlined,
+              size: 64, color: AppTheme.navy.withOpacity(0.2)),
+          const SizedBox(height: 10),
+          Text(
+            'NOTHING HERE',
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.navy.withOpacity(0.3),
+              letterSpacing: 1.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../models/app_state.dart';
+import '../models/models.dart';
+import '../theme/app_theme.dart';
+import '../widgets/widgets.dart';
+import 'task_detail_screen.dart';
+import 'invoice_detail_screen.dart';
+import 'new_invoice_screen.dart';
+
+class ProjectDetailScreen extends StatelessWidget {
+  final String projectId;
+
+  const ProjectDetailScreen({super.key, required this.projectId});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final project = state.getProject(projectId);
+
+    if (project == null) {
+      return const Scaffold(body: Center(child: Text('Project not found')));
+    }
+
+    return Scaffold(
+      backgroundColor: AppTheme.bg,
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(child: _ProjectHeader(project: project)),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 160),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    const SectionTitle('TASKS'),
+                    ...project.tasks.map(
+                      (task) => _TaskItem(task: task, project: project),
+                    ),
+                    GestureDetector(
+                      onTap: () {},
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
+                        child: Text(
+                          '+ ADD TASK',
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.teal,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const SectionTitle('NOTES'),
+                    Container(
+                      decoration: AppTheme.cardDecoration,
+                      padding: const EdgeInsets.all(12),
+                      child: Text(
+                        project.notes.isNotEmpty
+                            ? project.notes
+                            : 'No notes added yet.',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '+ ADD NOTES',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.teal,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const SectionTitle('INVOICE'),
+                    ...project.invoices.map(
+                      (inv) => GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => InvoiceDetailScreen(
+                              invoice: inv,
+                              project: project,
+                            ),
+                          ),
+                        ),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: AppTheme.cardDecoration,
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'INVOICE NUMBER: ${inv.invoiceNumber}',
+                                style: GoogleFonts.inter(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.navy,
+                                ),
+                              ),
+                              const SizedBox(height: 7),
+                              Row(
+                                children: [
+                                  AppPill(
+                                    text: inv.status.label,
+                                    bgColor: inv.status.bgColor,
+                                    textColor: inv.status.textColor,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  AppPill.lime(
+                                    'JAN 10, 2025',
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (project.invoices.isEmpty)
+                      Text(
+                        'No invoices yet.',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                  ]),
+                ),
+              ),
+            ],
+          ),
+
+          // Action Row
+          Positioned(
+            bottom: 80,
+            left: 14,
+            right: 14,
+            child: Row(
+              children: [
+                _ActionButton(
+                  label: 'ADD TASK',
+                  icon: Icons.add_box_outlined,
+                  onTap: () {},
+                ),
+                const SizedBox(width: 8),
+                _ActionButton(
+                  label: 'CREATE INVOICE',
+                  icon: Icons.receipt_outlined,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          NewInvoiceScreen(preselectedProject: project),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _ActionButton(
+                  label: 'CANCEL PROJECT',
+                  icon: Icons.close,
+                  onTap: () {
+                    context.read<AppState>().deleteProject(projectId);
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          // Back button in nav area
+          Positioned(
+            bottom: 14,
+            left: 14,
+            right: 14,
+            child: _BackNav(onBack: () => Navigator.pop(context)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProjectHeader extends StatelessWidget {
+  final ProjectModel project;
+
+  const _ProjectHeader({required this.project});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: AppTheme.headerDecoration,
+      padding: const EdgeInsets.fromLTRB(16, 54, 16, 16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'CLIENT NAME',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textMuted,
+                  ),
+                ),
+                Text(
+                  project.name,
+                  style: GoogleFonts.inter(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    color: AppTheme.navy,
+                    letterSpacing: -0.4,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                AppPill(
+                  text: project.status.label,
+                  bgColor: project.status.bgColor,
+                  textColor: project.status.textColor,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            width: 70,
+            height: 70,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: project.progress,
+                  strokeWidth: 8,
+                  backgroundColor: AppTheme.navy.withOpacity(0.15),
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.lime),
+                  strokeCap: StrokeCap.round,
+                ),
+                Text(
+                  '${(project.progress * 100).round()}%',
+                  style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: AppTheme.navy,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaskItem extends StatelessWidget {
+  final TaskModel task;
+  final ProjectModel project;
+
+  const _TaskItem({required this.task, required this.project});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TaskDetailScreen(task: task, project: project),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        decoration: AppTheme.cardDecoration,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        child: Row(
+          children: [
+            GestureDetector(
+              onTap: () => context
+                  .read<AppState>()
+                  .toggleTask(project.id, task.id),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: task.isDone ? AppTheme.navy : Colors.transparent,
+                  borderRadius: BorderRadius.circular(5),
+                  border: Border.all(
+                    color: task.isDone ? AppTheme.navy : Colors.grey.shade400,
+                    width: 2,
+                  ),
+                ),
+                child: task.isDone
+                    ? const Icon(Icons.check, size: 10, color: Colors.white)
+                    : null,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                task.name,
+                style: GoogleFonts.inter(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color:
+                      task.isDone ? AppTheme.textMuted : AppTheme.navy,
+                  decoration: task.isDone
+                      ? TextDecoration.lineThrough
+                      : TextDecoration.none,
+                ),
+              ),
+            ),
+            AppPill.lime('JAN 06, 2026'),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      TaskDetailScreen(task: task, project: project),
+                ),
+              ),
+              child: Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: AppTheme.teal,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.arrow_forward,
+                    color: Colors.white, size: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.navy.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          child: Column(
+            children: [
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.navy,
+                  letterSpacing: 0.2,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppTheme.navy, size: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BackNav extends StatelessWidget {
+  final VoidCallback onBack;
+
+  const _BackNav({required this.onBack});
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(26),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.28),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(color: Colors.white.withOpacity(0.55)),
+          boxShadow: [
+            BoxShadow(
+              color: AppTheme.navy.withOpacity(0.12),
+              blurRadius: 32,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            GestureDetector(
+              onTap: onBack,
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: AppTheme.navy,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: const Icon(Icons.arrow_back,
+                    color: Colors.white, size: 22),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// task_detail_screen.dart
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../models/app_state.dart';
+import '../models/models.dart';
+import '../theme/app_theme.dart';
+import '../widgets/widgets.dart';
+
+class TaskDetailScreen extends StatelessWidget {
+  final TaskModel task;
+  final ProjectModel project;
+
+  const TaskDetailScreen({
+    super.key,
+    required this.task,
+    required this.project,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black54,
+      body: GestureDetector(
+        onTap: () => Navigator.pop(context),
+        child: Center(
+          child: GestureDetector(
+            onTap: () {},
+            child: Container(
+              margin: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFBFC2BC),
+                borderRadius: BorderRadius.circular(22),
+              ),
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.name,
+                    style: GoogleFonts.inter(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                      color: AppTheme.navy,
+                      letterSpacing: -0.3,
+                    ),
+                  ),
+                  Text(
+                    project.name,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.navy,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      _MetaCell(
+                        label: 'Status',
+                        child: const AppPill(
+                          text: 'DUE TODAY',
+                          bgColor: AppTheme.navy,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _MetaCell(
+                        label: 'Due',
+                        child: AppPill.lime('JAN 10, 2025'),
+                      ),
+                      const SizedBox(width: 8),
+                      _MetaCell(
+                        label: 'Priority',
+                        child: AppPill(
+                          text: task.priority.label,
+                          bgColor: AppTheme.teal,
+                          textColor: const Color(0xFF0A3028),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Description',
+                    style: GoogleFonts.inter(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.navy,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: AppTheme.navy.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    child: Text(
+                      task.description.isNotEmpty
+                          ? task.description
+                          : 'No description added.',
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF444444),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Status',
+                            style: GoogleFonts.inter(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.navy.withOpacity(0.6),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          AppPill(
+                            text:
+                                task.isInvoiced ? 'INVOICED' : 'NOT INVOICED',
+                            bgColor: AppTheme.teal,
+                            textColor: const Color(0xFF0A3028),
+                          ),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Price',
+                            style: GoogleFonts.inter(
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.navy.withOpacity(0.6),
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          AppPill.lime(
+                              '${task.price.toStringAsFixed(0)} EGP'),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _PopupButton(
+                        label: 'VIEW PROJECT',
+                        icon: Icons.list_alt_outlined,
+                        onTap: () => Navigator.pop(context),
+                      ),
+                      const SizedBox(width: 8),
+                      _PopupButton(
+                        label: 'RESCHEDULE TASK',
+                        icon: Icons.calendar_today_outlined,
+                        onTap: () {},
+                      ),
+                      const SizedBox(width: 8),
+                      _PopupButton(
+                        label: 'MARK AS DONE',
+                        icon: Icons.check,
+                        iconBg: AppTheme.lime,
+                        onTap: () {
+                          context
+                              .read<AppState>()
+                              .toggleTask(project.id, task.id);
+                          Navigator.pop(context);
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MetaCell extends StatelessWidget {
+  final String label;
+  final Widget child;
+
+  const _MetaCell({required this.label, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 8.5,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.navy.withOpacity(0.6),
+          ),
+        ),
+        const SizedBox(height: 3),
+        child,
+      ],
+    );
+  }
+}
+
+class _PopupButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color? iconBg;
+  final VoidCallback onTap;
+
+  const _PopupButton({
+    required this.label,
+    required this.icon,
+    this.iconBg,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.navy.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
+          child: Column(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: iconBg ?? Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppTheme.navy, size: 14),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 7.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.navy,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../models/app_state.dart';
+import '../models/models.dart';
+import '../theme/app_theme.dart';
+import '../widgets/widgets.dart';
+import 'invoice_detail_screen.dart';
+
+class InvoicesScreen extends StatefulWidget {
+  const InvoicesScreen({super.key});
+
+  @override
+  State<InvoicesScreen> createState() => _InvoicesScreenState();
+}
+
+class _InvoicesScreenState extends State<InvoicesScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+
+    return Scaffold(
+      backgroundColor: AppTheme.bg,
+      body: Column(
+        children: [
+          Container(
+            decoration: AppTheme.headerDecoration,
+            padding: const EdgeInsets.fromLTRB(16, 54, 16, 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        DateFormat('MMM d, yyyy')
+                            .format(DateTime.now())
+                            .toUpperCase(),
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.navy.withOpacity(0.55),
+                          letterSpacing: 0.4,
+                        ),
+                      ),
+                      Text('INVOICES', style: AppTheme.heading1),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.calendar_today_outlined,
+                    color: AppTheme.navy, size: 20),
+                const SizedBox(width: 10),
+                const AppAvatar(),
+              ],
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+            decoration: BoxDecoration(
+              color: AppTheme.navy.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            padding: const EdgeInsets.all(3),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(11),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.08),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+              labelColor: AppTheme.navy,
+              unselectedLabelColor: AppTheme.textMuted,
+              labelStyle: GoogleFonts.inter(
+                  fontSize: 9.5, fontWeight: FontWeight.w700),
+              unselectedLabelStyle: GoogleFonts.inter(
+                  fontSize: 9.5, fontWeight: FontWeight.w700),
+              dividerColor: Colors.transparent,
+              tabs: [
+                Tab(text: 'UNPAID ${state.unpaidInvoices.length}'),
+                Tab(text: 'PAID ${state.paidInvoices.length}'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _InvoiceList(invoices: state.unpaidInvoices),
+                _InvoiceList(invoices: state.paidInvoices),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InvoiceList extends StatelessWidget {
+  final List<InvoiceModel> invoices;
+
+  const _InvoiceList({required this.invoices});
+
+  @override
+  Widget build(BuildContext context) {
+    if (invoices.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.receipt_long_outlined,
+                size: 64, color: AppTheme.navy.withOpacity(0.2)),
+            const SizedBox(height: 10),
+            Text(
+              'NOTHING HERE',
+              style: GoogleFonts.inter(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.navy.withOpacity(0.3),
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final state = context.read<AppState>();
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 100),
+      itemCount: invoices.length,
+      itemBuilder: (_, i) {
+        final inv = invoices[i];
+        final project =
+            state.projects.firstWhere((p) => p.id == inv.projectId);
+        return InvoiceCard(invoice: inv, project: project);
+      },
+    );
+  }
+}
+
+class InvoiceCard extends StatelessWidget {
+  final InvoiceModel invoice;
+  final ProjectModel project;
+
+  const InvoiceCard({super.key, required this.invoice, required this.project});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              InvoiceDetailScreen(invoice: invoice, project: project),
+        ),
+      ),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: AppTheme.cardDecoration,
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        project.name,
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.navy,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      Text(
+                        'CLIENT NAME',
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                ArrowButton(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => InvoiceDetailScreen(
+                        invoice: invoice,
+                        project: project,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                AppPill(
+                  text: invoice.dueDate.isBefore(DateTime.now())
+                      ? 'DUE TODAY'
+                      : DateFormat('MMM dd, yyyy').format(invoice.dueDate),
+                  bgColor: invoice.dueDate.isBefore(DateTime.now())
+                      ? AppTheme.navy
+                      : const Color(0xFFE0E2DC),
+                  textColor: invoice.dueDate.isBefore(DateTime.now())
+                      ? Colors.white
+                      : const Color(0xFF555555),
+                ),
+                const SizedBox(width: 6),
+                AppPill.lime('${invoice.total.toStringAsFixed(0)} EGP'),
+                const Spacer(),
+                AppPill(
+                  text: invoice.status.label,
+                  bgColor: invoice.status.bgColor,
+                  textColor: invoice.status.textColor,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import '../models/app_state.dart';
+import '../models/models.dart';
+import '../theme/app_theme.dart';
+import '../widgets/widgets.dart';
+
+class InvoiceDetailScreen extends StatelessWidget {
+  final InvoiceModel invoice;
+  final ProjectModel project;
+
+  const InvoiceDetailScreen({
+    super.key,
+    required this.invoice,
+    required this.project,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.bg,
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFC8CAC4),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Header
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      project.clientName,
+                                      style: GoogleFonts.inter(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w900,
+                                        color: AppTheme.navy,
+                                        letterSpacing: -0.3,
+                                        height: 1.2,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      'CLIENT NAME\n${project.clientCity}\nTEL: ${project.clientPhone}',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w500,
+                                        color: AppTheme.textMuted,
+                                        height: 1.6,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppTheme.navy.withOpacity(0.12),
+                                  ),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 9, vertical: 7),
+                                child: Row(
+                                  children: [
+                                    Column(
+                                      children: [
+                                        Text(
+                                          'EDIT',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppTheme.navy,
+                                          ),
+                                        ),
+                                        Text(
+                                          'INVOICE',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 8,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppTheme.navy,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      width: 26,
+                                      height: 26,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(
+                                        Icons.edit_outlined,
+                                        color: AppTheme.navy,
+                                        size: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              'ABDULLAH ABDEEN\nCairo, Egypt\nTEL: +20 10 1455 9799',
+                              textAlign: TextAlign.right,
+                              style: GoogleFonts.inter(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.navy,
+                                height: 1.6,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Divider(
+                              color: Color(0xFFB0B2AC), thickness: 1),
+                          const SizedBox(height: 8),
+
+                          // Table Header
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                child: Text('No.',
+                                    style: _headerStyle()),
+                              ),
+                              Expanded(
+                                  child: Text('TASKS',
+                                      style: _headerStyle())),
+                              SizedBox(
+                                  width: 36,
+                                  child: Text('UNIT',
+                                      style: _headerStyle(),
+                                      textAlign: TextAlign.center)),
+                              SizedBox(
+                                  width: 42,
+                                  child: Text('UNIT',
+                                      style: _headerStyle(),
+                                      textAlign: TextAlign.center)),
+                              SizedBox(
+                                  width: 48,
+                                  child: Text('PRICE',
+                                      style: _headerStyle(),
+                                      textAlign: TextAlign.right)),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+
+                          // Lines
+                          ...invoice.lines.asMap().entries.map((e) {
+                            final i = e.key;
+                            final line = e.value;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
+                              child: Row(
+                                children: [
+                                  _Cell(text: '${i + 1}', width: 24),
+                                  const SizedBox(width: 4),
+                                  Expanded(child: _Cell(text: line.taskName)),
+                                  const SizedBox(width: 4),
+                                  _Cell(
+                                      text: '${line.unit}',
+                                      width: 36,
+                                      centered: true),
+                                  const SizedBox(width: 4),
+                                  _Cell(
+                                      text:
+                                          line.rate.toStringAsFixed(0),
+                                      width: 42,
+                                      centered: true),
+                                  const SizedBox(width: 4),
+                                  SizedBox(
+                                    width: 48,
+                                    child: Text(
+                                      line.total.toStringAsFixed(0),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.navy,
+                                      ),
+                                      textAlign: TextAlign.right,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                          const SizedBox(height: 8),
+                          GestureDetector(
+                            onTap: () {},
+                            child: Text(
+                              '+ ADD TASK',
+                              style: GoogleFonts.inter(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.teal,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          const Divider(
+                              color: Color(0xFFB0B2AC), thickness: 1),
+                          const SizedBox(height: 10),
+                          Text(
+                            'INVOICE',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.navy,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Container(
+                            decoration: BoxDecoration(
+                              color: AppTheme.navy.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.all(10),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'INVOICE NUMBER: ${invoice.invoiceNumber}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.navy,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    AppPill(
+                                      text: invoice.status.label,
+                                      bgColor: invoice.status.bgColor,
+                                      textColor: invoice.status.textColor,
+                                    ),
+                                    const SizedBox(width: 6),
+                                    AppPill.lime(DateFormat('MMM dd, yyyy')
+                                        .format(invoice.dueDate)),
+                                    const Spacer(),
+                                    AppPill(
+                                      text:
+                                          'TOTAL: ${invoice.total.toStringAsFixed(0)} EGP',
+                                      bgColor: AppTheme.navy,
+                                      fontSize: 8,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(child: SizedBox(height: 160)),
+            ],
+          ),
+
+          // Action buttons
+          Positioned(
+            bottom: 80,
+            left: 14,
+            right: 14,
+            child: Row(
+              children: [
+                _ActionBtn(
+                    label: 'SEND INVOICE',
+                    icon: Icons.send_outlined,
+                    onTap: () {}),
+                const SizedBox(width: 8),
+                _ActionBtn(
+                    label: 'DOWNLOAD PDF',
+                    icon: Icons.download_outlined,
+                    onTap: () {}),
+                const SizedBox(width: 8),
+                _ActionBtn(
+                  label: invoice.status == InvoiceStatus.unpaid
+                      ? 'MARK PAID'
+                      : 'MARK UNPAID',
+                  icon: invoice.status == InvoiceStatus.unpaid
+                      ? Icons.check_circle_outline
+                      : Icons.cancel_outlined,
+                  onTap: () {
+                    context.read<AppState>().markInvoicePaid(invoice.id);
+                    Navigator.pop(context);
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          // Back nav
+          Positioned(
+            bottom: 14,
+            left: 14,
+            right: 14,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(26),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.28),
+                  borderRadius: BorderRadius.circular(26),
+                  border: Border.all(color: Colors.white.withOpacity(0.55)),
+                ),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 9),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: AppTheme.navy,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Icon(Icons.arrow_back,
+                            color: Colors.white, size: 22),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  TextStyle _headerStyle() => GoogleFonts.inter(
+        fontSize: 8.5,
+        fontWeight: FontWeight.w700,
+        color: AppTheme.textMuted,
+      );
+}
+
+class _Cell extends StatelessWidget {
+  final String text;
+  final double? width;
+  final bool centered;
+
+  const _Cell({required this.text, this.width, this.centered = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final cell = Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFB8BAB4),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      child: Text(
+        text,
+        style: GoogleFonts.inter(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.navy,
+        ),
+        textAlign: centered ? TextAlign.center : TextAlign.left,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+
+    return width != null ? SizedBox(width: width, child: cell) : cell;
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _ActionBtn(
+      {required this.label, required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.navy.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+          child: Column(
+            children: [
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 8,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.navy,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppTheme.navy, size: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
